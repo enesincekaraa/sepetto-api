@@ -7,6 +7,8 @@ import com.sepetto.api.kafka.OrderProducer;
 import com.sepetto.api.kafka.dto.OrderConfirmation;
 import com.sepetto.api.orderline.dto.OrderLineRequest;
 import com.sepetto.api.orderline.service.OrderLineService;
+import com.sepetto.api.payment.PaymentClient;
+import com.sepetto.api.payment.PaymentRequest;
 import com.sepetto.api.product.ProductClient;
 import com.sepetto.api.dto.OrderRequest;
 import com.sepetto.api.exception.BusinessException;
@@ -27,14 +29,16 @@ public class OrderService {
     private final OrderMapper mapper;
     private final OrderLineService orderLineService;
     private final OrderProducer orderProducer;
+    private final PaymentClient paymentClient;
 
-    public OrderService(OrderRepository repository, CustomerClient customerClient, ProductClient productClient, OrderMapper mapper, OrderLineService orderLineService, OrderProducer orderProducer) {
+    public OrderService(OrderRepository repository, CustomerClient customerClient, ProductClient productClient, OrderMapper mapper, OrderLineService orderLineService, OrderProducer orderProducer, PaymentClient paymentClient) {
         this.repository = repository;
         this.customerClient = customerClient;
         this.productClient = productClient;
         this.mapper = mapper;
         this.orderLineService = orderLineService;
         this.orderProducer = orderProducer;
+        this.paymentClient = paymentClient;
     }
 
 
@@ -57,8 +61,15 @@ public class OrderService {
                     )
             );
         }
+        var paymentRequest = new PaymentRequest(
+                request.amount(),
+                request.paymentMethod(),
+                order.getId(),
+                order.getReference(),
+                customer
+        );
+        paymentClient.requestOrderPayment(paymentRequest);
 
-       // start payment process
 
         orderProducer.sendOrderConfirmation(new OrderConfirmation(
                 request.reference(),
